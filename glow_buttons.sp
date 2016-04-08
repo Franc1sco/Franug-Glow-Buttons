@@ -2,7 +2,7 @@
 #include <sourcemod>
 #include <sdktools>
 
-#define DATA "1.0"
+#define DATA "1.1"
 public Plugin:myinfo =
 {
 	name = "SM Glow Buttons",
@@ -12,11 +12,15 @@ public Plugin:myinfo =
 	url = "http://steamcommunity.com/id/franug/"
 };
 
+Handle buttons;
+
 public OnPluginStart() 
 {
 	HookEvent("round_start", EventRoundStart);
-
+	HookEntityOutput("func_button", "OnPressed", Presionado);
 	CreateConVar("sm_glowbuttons_version", DATA, "", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
+	
+	buttons = CreateTrie();
 }
 
 public OnMapStart()
@@ -26,13 +30,16 @@ public OnMapStart()
 
 public Action:EventRoundStart(Handle:event, const String:name[], bool:dontBroadcast) 
 {
+	ClearTrie(buttons);
 	int ent2 = -1;
 	while ((ent2 = FindEntityByClassname(ent2, "func_button")) != -1) 
 	{
+		char buffer1[256];
 		float origin[3];
 		GetEntPropVector(ent2, Prop_Send, "m_vecOrigin", origin);
-
+		Format(buffer1, 256, "%i", EntIndexToEntRef(ent2));
 		new Ent = CreateEntityByName("prop_dynamic_glow");
+		if (Ent == -1)return;
 		DispatchKeyValue(Ent, "model", "models/chicken/chicken.mdl");
 		DispatchKeyValue(Ent, "disablereceiveshadows", "1");
 		DispatchKeyValue(Ent, "disableshadows", "1");
@@ -47,6 +54,8 @@ public Action:EventRoundStart(Handle:event, const String:name[], bool:dontBroadc
 		SetEntPropFloat(Ent, Prop_Send, "m_flModelScale", 0.7);
 		SetVariantString("!activator");
 		AcceptEntityInput(Ent, "SetParent", ent2);
+		
+		SetTrieValue(buttons, buffer1, EntIndexToEntRef(Ent));
 	}
 }
 
@@ -61,3 +70,17 @@ stock void SetGlowColor(int entity, const char[] color)
     SetVariantColor(colors);
     AcceptEntityInput(entity, "SetGlowColor");
 }  
+
+public Presionado(const String:output[], caller, activator, Float:delay)
+{
+	char buffer1[256];
+	int theglow;
+
+	Format(buffer1, 256, "%i", EntIndexToEntRef(caller));
+	if (!GetTrieValue(buttons, buffer1, theglow))return;
+	theglow = EntRefToEntIndex(theglow);
+	
+	if (theglow == INVALID_ENT_REFERENCE) return;
+	
+	AcceptEntityInput(theglow, "Kill");
+}
