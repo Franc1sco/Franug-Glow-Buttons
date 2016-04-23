@@ -2,7 +2,7 @@
 #include <sourcemod>
 #include <sdktools>
 
-#define DATA "1.1"
+#define DATA "1.2"
 public Plugin:myinfo =
 {
 	name = "SM Glow Buttons",
@@ -13,9 +13,13 @@ public Plugin:myinfo =
 };
 
 Handle buttons;
+bool csgo;
 
 public OnPluginStart() 
 {
+	if (GetEngineVersion() != Engine_CSGO)csgo = false;
+	else csgo = true;
+	
 	HookEvent("round_start", EventRoundStart);
 	HookEntityOutput("func_button", "OnPressed", Presionado);
 	CreateConVar("sm_glowbuttons_version", DATA, "", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
@@ -25,7 +29,8 @@ public OnPluginStart()
 
 public OnMapStart()
 {
-	PrecacheModel("models/chicken/chicken.mdl");
+	if(csgo) PrecacheModel("models/chicken/chicken.mdl");
+	else PrecacheModel("materials/sprites/bomb_planted_ring.vmt");
 }
 
 public Action:EventRoundStart(Handle:event, const String:name[], bool:dontBroadcast) 
@@ -34,24 +39,44 @@ public Action:EventRoundStart(Handle:event, const String:name[], bool:dontBroadc
 	int ent2 = -1;
 	while ((ent2 = FindEntityByClassname(ent2, "func_button")) != -1) 
 	{
+
 		char buffer1[256];
 		float origin[3];
+		int Ent;
 		GetEntPropVector(ent2, Prop_Send, "m_vecOrigin", origin);
 		Format(buffer1, 256, "%i", EntIndexToEntRef(ent2));
-		new Ent = CreateEntityByName("prop_dynamic_glow");
-		if (Ent == -1)return;
-		DispatchKeyValue(Ent, "model", "models/chicken/chicken.mdl");
-		DispatchKeyValue(Ent, "disablereceiveshadows", "1");
-		DispatchKeyValue(Ent, "disableshadows", "1");
-		DispatchKeyValue(Ent, "solid", "0");
-		DispatchKeyValue(Ent, "spawnflags", "256");
-		SetEntProp(Ent, Prop_Send, "m_CollisionGroup", 11);
-		DispatchSpawn(Ent);
-		TeleportEntity(Ent, origin, NULL_VECTOR, NULL_VECTOR);
-		SetEntProp(Ent, Prop_Send, "m_bShouldGlow", true, true);
-		SetEntPropFloat(Ent, Prop_Send, "m_flGlowMaxDist", 10000000.0);
-		SetGlowColor(Ent, "0 255 0");
-		SetEntPropFloat(Ent, Prop_Send, "m_flModelScale", 0.7);
+		if(csgo)
+		{
+			
+			Ent = CreateEntityByName("prop_dynamic_glow");
+			if (Ent == -1)return;
+			DispatchKeyValue(Ent, "model", "models/chicken/chicken.mdl");
+			DispatchKeyValue(Ent, "disablereceiveshadows", "1");
+			DispatchKeyValue(Ent, "disableshadows", "1");
+			DispatchKeyValue(Ent, "solid", "0");
+			DispatchKeyValue(Ent, "spawnflags", "256");
+			SetEntProp(Ent, Prop_Send, "m_CollisionGroup", 11);
+			DispatchSpawn(Ent);
+			TeleportEntity(Ent, origin, NULL_VECTOR, NULL_VECTOR);
+			SetEntProp(Ent, Prop_Send, "m_bShouldGlow", true, true);
+			SetEntPropFloat(Ent, Prop_Send, "m_flGlowMaxDist", 10000000.0);
+			SetGlowColor(Ent, "0 255 0");
+			SetEntPropFloat(Ent, Prop_Send, "m_flModelScale", 0.7);
+		}
+		else
+		{
+			Ent = CreateEntityByName("env_glow");
+			if (Ent == -1)return;
+			DispatchKeyValue(Ent, "model", "materials/sprites/bomb_planted_ring.vmt");
+			DispatchKeyValue(Ent, "rendermode", "3");
+			DispatchKeyValue(Ent, "renderfx", "14");
+			DispatchKeyValue(Ent, "scale", "0.2");
+			DispatchKeyValue(Ent, "renderamt", "255");
+			DispatchKeyValue(Ent, "rendercolor", "0 255 0 255");
+			DispatchSpawn(Ent);
+			AcceptEntityInput(Ent, "ShowSprite");
+			TeleportEntity(Ent, origin, NULL_VECTOR, NULL_VECTOR);	
+		}
 		SetVariantString("!activator");
 		AcceptEntityInput(Ent, "SetParent", ent2);
 		
